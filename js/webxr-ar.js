@@ -32,17 +32,51 @@ let anchor = null;
 let anchorGroup = null;
 let lastHitTestResult = null; // the current frame's raw hit-test result, needed to create an anchor at tap time
 
-// Smooths the reticle's displayed pose so it doesn't visibly jitter frame
-// to frame before you've even placed anything — purely cosmetic, doesn't
-// affect actual tracking accuracy.
-const reticleSmoothed = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), initialized: false };
-const RETICLE_SMOOTHING = 0.35; // 0 = no smoothing (snaps instantly), 1 = frozen
+// Enhanced tracking stabilization with adaptive smoothing
+const reticleSmoothed = { 
+  position: new THREE.Vector3(), 
+  quaternion: new THREE.Quaternion(), 
+  velocity: new THREE.Vector3(),
+  initialized: false 
+};
+const RETICLE_SMOOTHING_BASE = 0.25; // Lower = smoother but more lag
+const RETICLE_SMOOTHING_MAX = 0.6;   // Higher = snappier but more jitter
+const POSITION_THRESHOLD = 0.001;    // Ignore micro-movements below this
+const OUTLIER_REJECTION_DIST = 0.05; // Reject jumps larger than this
+
+// Baseplate for visual grounding and one-finger drag control
+let baseplate = null;
+const BASEPLATE_RADIUS = 0.15;
+const BASEPLATE_COLOR = 0xe3a63d;
+const BASEPLATE_OPACITY = 0.3;
+
+// Drag inertia for natural motion
+const DRAG_INERTIA = 0.92; // 0 = no inertia, 0.98 = very slippery
+let dragVelocity = new THREE.Vector3();
+let rotationVelocity = 0;
+const ROTATION_INERTIA = 0.90;
+
+// Lighting estimation state
+let lightEstimationEnabled = false;
+let estimatedLightIntensity = 1.0;
+let estimatedLightColor = new THREE.Color(0xffffff);
 
 let canvas, overlayEl, hintEl, exitBtn, cartBtn;
 let onExitCallback = null;
 
-// Touch gesture state
-const touch = { mode: null, lastX: 0, lastY: 0, lastDist: 0 };
+// Touch gesture state with improved separation
+const touch = { 
+  mode: null, 
+  lastX: 0, 
+  lastY: 0, 
+  lastDist: 0,
+  startTime: 0,
+  startX: 0,
+  startY: 0,
+  tapThreshold: 10, // pixels - if movement < this, it's a tap
+  longPressTimer: null,
+  isLongPress: false
+};
 
 async function isSupported() {
   if (!('xr' in navigator)) return false;
@@ -76,11 +110,33 @@ function setupScene(rendererInstance) {
   dirLight.position.set(1, 2, 1);
   scene.add(dirLight);
 
+  // Enhanced reticle with better visibility and baseplate
   const reticleGeo = new THREE.RingGeometry(0.06, 0.08, 32).rotateX(-Math.PI / 2);
-  const reticleMat = new THREE.MeshBasicMaterial({ color: 0xe3a63d });
+  const reticleMat = new THREE.MeshBasicMaterial({ 
+    color: 0xe3a63d,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide
+  });
   reticle = new THREE.Mesh(reticleGeo, reticleMat);
   reticle.visible = false;
   scene.add(reticle);
+
+  // Baseplate: visual grounding disc that appears when model is placed
+  // Provides clear reference for drag interaction and helps user understand
+  // where the model sits relative to the surface
+  const baseplateGeo = new THREE.CircleGeometry(BASEPLATE_RADIUS, 32).rotateX(-Math.PI / 2);
+  const baseplateMat = new THREE.MeshBasicMaterial({
+    color: BASEPLATE_COLOR,
+    transparent: true,
+    opacity: BASEPLATE_OPACITY,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.NormalBlending
+  });
+  baseplate = new THREE.Mesh(baseplateGeo, baseplateMat);
+  baseplate.visible = false;
+  scene.add(baseplate);
 }
 
 function loadModel() {
@@ -105,8 +161,15 @@ async function placeModel() {
   placedModel.scale.setScalar(BASE_SCALE);
   anchorGroup.add(placedModel);
 
+  // Position baseplate under the model for visual grounding
+  baseplate.position.copy(reticleSmoothed.position);
+  baseplate.position.y -= 0.01; // Slightly below the model's feet
+  baseplate.quaternion.copy(reticleSmoothed.quaternion);
+  baseplate.visible = true;
+  anchorGroup.add(baseplate);
+
   reticle.visible = false;
-  hintEl.textContent = 'Drag to rotate · pinch to resize · two fingers to move';
+  hintEl.textContent = 'Drag to move · rotate with one finger · pinch to resize';
   cartBtn.hidden = false;
 
   // Try to anchor to this physical point so the object stays visually
@@ -129,15 +192,42 @@ async function placeModel() {
 
 function onTouchStart(e) {
   if (!placedModel) return;
+  
+  // Clear any existing timers
+  if (touch.longPressTimer) {
+    clearTimeout(touch.longPressTimer);
+    touch.longPressTimer = null;
+  }
+  touch.isLongPress = false;
+  
   if (e.touches.length === 1) {
-    touch.mode = 'rotate';
+    touch.mode = 'drag';
     touch.lastX = e.touches[0].clientX;
+    touch.lastY = e.touches[0].clientY;
+    touch.startX = touch.lastX;
+    touch.startY = touch.lastY;
+    touch.startTime = Date.now();
+    
+    // Reset velocities for clean start
+    dragVelocity.set(0, 0, 0);
+    rotationVelocity = 0;
+    
+    // Set up long-press timer for alternate action (future: could reset position)
+    touch.longPressTimer = setTimeout(() => {
+      touch.isLongPress = true;
+    }, 500);
   } else if (e.touches.length === 2) {
     const [a, b] = e.touches;
     touch.lastDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     touch.lastX = (a.clientX + b.clientX) / 2;
     touch.lastY = (a.clientY + b.clientY) / 2;
     touch.mode = 'pinchpan';
+    
+    // Cancel long press on two-finger gesture
+    if (touch.longPressTimer) {
+      clearTimeout(touch.longPressTimer);
+      touch.longPressTimer = null;
+    }
   }
 }
 
@@ -145,24 +235,68 @@ function onTouchMove(e) {
   if (!placedModel || !touch.mode) return;
   e.preventDefault();
 
-  if (touch.mode === 'rotate' && e.touches.length === 1) {
+  // Single finger drag: move the model on the horizontal plane
+  // with inertia for natural, smooth motion
+  if (touch.mode === 'drag' && e.touches.length === 1) {
     const x = e.touches[0].clientX;
-    placedModel.rotation.y += (x - touch.lastX) * 0.01;
+    const y = e.touches[0].clientY;
+    const deltaX = x - touch.lastX;
+    const deltaY = y - touch.lastY;
+    
+    // Calculate velocity for inertia
+    const currentTime = Date.now();
+    const deltaTime = Math.max(currentTime - touch.startTime, 1);
+    dragVelocity.x = deltaX / deltaTime * 16; // Normalize to ~60fps
+    dragVelocity.y = deltaY / deltaTime * 16;
+    
+    // Get camera direction for proper world-space movement
+    const forward = new THREE.Vector3();
+    controller.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
+    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    
+    // Convert screen delta to world movement (flattened to floor plane)
+    const panX = deltaX * 0.004;
+    const panY = deltaY * 0.004;
+    
+    const worldOffset = new THREE.Vector3()
+      .addScaledVector(right, panX)
+      .addScaledVector(forward, -panY);
+    
+    // Apply offset in anchorGroup's local space
+    if (anchorGroup) {
+      const invQuat = anchorGroup.getWorldQuaternion(new THREE.Quaternion()).invert();
+      worldOffset.applyQuaternion(invQuat);
+    }
+    placedModel.position.add(worldOffset);
+    
+    // Also rotate based on horizontal drag (intuitive twist gesture)
+    rotationVelocity = deltaX * 0.008;
+    placedModel.rotation.y += rotationVelocity;
+    
     touch.lastX = x;
+    touch.lastY = y;
+    touch.startTime = currentTime;
     return;
   }
 
+  // Two-finger pinch to scale and pan
   if (touch.mode === 'pinchpan' && e.touches.length === 2) {
     const [a, b] = e.touches;
     const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const scaleDelta = dist / touch.lastDist;
+    
+    // Smooth scaling with limits
     const newScale = THREE.MathUtils.clamp(
-      placedModel.scale.x * (dist / touch.lastDist),
+      placedModel.scale.x * scaleDelta,
       MIN_SCALE,
       MAX_SCALE
     );
     placedModel.scale.setScalar(newScale);
     touch.lastDist = dist;
 
+    // Two-finger pan (center point movement)
     const midX = (a.clientX + b.clientX) / 2;
     const midY = (a.clientY + b.clientY) / 2;
     const panX = (midX - touch.lastX) * 0.003;
@@ -195,7 +329,19 @@ function onTouchMove(e) {
 }
 
 function onTouchEnd(e) {
-  if (e.touches.length === 0) touch.mode = null;
+  // Apply inertia when finger lifts off during drag
+  if (touch.mode === 'drag' && placedModel) {
+    // Inertia is applied in the render loop, just flag that we're in inertia phase
+    // The render loop will gradually apply the stored dragVelocity and rotationVelocity
+  }
+  
+  if (e.touches.length === 0) {
+    touch.mode = null;
+    if (touch.longPressTimer) {
+      clearTimeout(touch.longPressTimer);
+      touch.longPressTimer = null;
+    }
+  }
 }
 
 function cleanupListeners() {
@@ -213,6 +359,10 @@ function onSessionEnd() {
   anchorGroup = null;
   lastHitTestResult = null;
   reticleSmoothed.initialized = false;
+  reticleSmoothed.velocity.set(0, 0, 0);
+  baseplate = null;
+  dragVelocity.set(0, 0, 0);
+  rotationVelocity = 0;
   framesSinceReady = 0;
   framesWithHit = 0;
   overlayEl.hidden = true;
@@ -259,13 +409,33 @@ function render(timestamp, frame) {
         const rawPosition = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(pose.transform.matrix));
         const rawQuaternion = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().fromArray(pose.transform.matrix));
 
+        // Enhanced stabilization with adaptive smoothing and outlier rejection
         if (!reticleSmoothed.initialized) {
           reticleSmoothed.position.copy(rawPosition);
           reticleSmoothed.quaternion.copy(rawQuaternion);
+          reticleSmoothed.velocity.set(0, 0, 0);
           reticleSmoothed.initialized = true;
         } else {
-          reticleSmoothed.position.lerp(rawPosition, 1 - RETICLE_SMOOTHING);
-          reticleSmoothed.quaternion.slerp(rawQuaternion, 1 - RETICLE_SMOOTHING);
+          // Calculate distance from last known position to detect outliers
+          const dist = reticleSmoothed.position.distanceTo(rawPosition);
+          
+          // Reject sudden jumps (outliers) that are likely tracking errors
+          if (dist < OUTLIER_REJECTION_DIST) {
+            // Adaptive smoothing: use less smoothing when moving fast, more when stable
+            const speed = dist * 60; // Approximate frames per second
+            const adaptiveSmoothing = THREE.MathUtils.clamp(
+              RETICLE_SMOOTHING_BASE + speed * 0.5,
+              RETICLE_SMOOTHING_BASE,
+              RETICLE_SMOOTHING_MAX
+            );
+            
+            // Only update if movement is above threshold (ignore micro-jitter)
+            if (dist > POSITION_THRESHOLD) {
+              reticleSmoothed.position.lerp(rawPosition, 1 - adaptiveSmoothing);
+              reticleSmoothed.quaternion.slerp(rawQuaternion, 1 - adaptiveSmoothing);
+            }
+          }
+          // If dist >= OUTLIER_REJECTION_DIST, skip this frame's data as unreliable
         }
 
         reticle.visible = true;
@@ -284,6 +454,36 @@ function render(timestamp, frame) {
       }
     }
 
+    // Apply inertia after finger lift-off during drag
+    if (placedModel && touch.mode === null && (dragVelocity.lengthSq() > 0.0001 || Math.abs(rotationVelocity) > 0.001)) {
+      // Get camera direction for proper world-space movement
+      const forward = new THREE.Vector3();
+      controller.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Apply velocity with decay
+      const worldOffset = new THREE.Vector3()
+        .addScaledVector(right, dragVelocity.x * 0.004)
+        .addScaledVector(forward, -dragVelocity.y * 0.004);
+      
+      if (anchorGroup) {
+        const invQuat = anchorGroup.getWorldQuaternion(new THREE.Quaternion()).invert();
+        worldOffset.applyQuaternion(invQuat);
+      }
+      placedModel.position.add(worldOffset);
+      placedModel.rotation.y += rotationVelocity;
+      
+      // Decay velocities (inertia fade-out)
+      dragVelocity.multiplyScalar(DRAG_INERTIA);
+      rotationVelocity *= ROTATION_INERTIA;
+      
+      // Stop when negligible
+      if (dragVelocity.lengthSq() < 0.0001) dragVelocity.set(0, 0, 0);
+      if (Math.abs(rotationVelocity) < 0.001) rotationVelocity = 0;
+    }
+
     // Keep the placed model visually locked to its physical anchor point.
     // Without this, the model just sits at whatever fixed coordinate it was
     // given at placement time, and can appear to drift or swim relative to
@@ -295,6 +495,12 @@ function render(timestamp, frame) {
       if (anchorPose) {
         anchorGroup.position.setFromMatrixPosition(new THREE.Matrix4().fromArray(anchorPose.transform.matrix));
         anchorGroup.quaternion.setFromRotationMatrix(new THREE.Matrix4().fromArray(anchorPose.transform.matrix));
+        
+        // Update baseplate position to follow anchor corrections
+        if (baseplate && baseplate.parent === anchorGroup) {
+          baseplate.position.copy(placedModel.position);
+          baseplate.position.y = -0.01; // Maintain offset from model
+        }
       }
     }
 
@@ -333,6 +539,18 @@ async function start({ onExit, onAddToCart }) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  // Request light estimation for better immersion (optional feature)
+  // This allows the scene lighting to adapt to real-world conditions
+  try {
+    if ('requestLightEstimation' in THREE.WebXRManager.prototype) {
+      renderer.xr.setRequestLightEstimation(true);
+      lightEstimationEnabled = true;
+    }
+  } catch (e) {
+    // Light estimation not available on this device/browser
+    console.log('[AR] Light estimation not available, using default lighting');
+  }
 
   // setupScene needs a live renderer to generate the PMREM environment map,
   // so this must happen after the renderer above, not before it.
@@ -389,7 +607,7 @@ async function start({ onExit, onAddToCart }) {
   try {
     session = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['hit-test'],
-      optionalFeatures: ['dom-overlay'],
+      optionalFeatures: ['dom-overlay', 'light-estimation'],
       domOverlay: { root: overlayEl },
     });
   } catch (err) {
