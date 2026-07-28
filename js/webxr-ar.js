@@ -21,6 +21,23 @@ let placedModel = null;
 let loadedGltfTemplate = null;
 let session = null;
 
+// Stable world-locking: an XRAnchor (when the device supports it) tracks a
+// physical point and gets corrected by the device's own tracking system as
+// it refines its understanding of the room — a plain fixed position does
+// not get these corrections and can visibly drift/swim as you walk around.
+// anchorGroup is what actually follows the anchor's pose each frame;
+// placedModel is parented to it so user rotate/pan gestures (applied as
+// placedModel's LOCAL transform) survive anchor corrections untouched.
+let anchor = null;
+let anchorGroup = null;
+let lastHitTestResult = null; // the current frame's raw hit-test result, needed to create an anchor at tap time
+
+// Smooths the reticle's displayed pose so it doesn't visibly jitter frame
+// to frame before you've even placed anything — purely cosmetic, doesn't
+// affect actual tracking accuracy.
+const reticleSmoothed = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), initialized: false };
+const RETICLE_SMOOTHING = 0.35; // 0 = no smoothing (snaps instantly), 1 = frozen
+
 let canvas, overlayEl, hintEl, exitBtn, cartBtn;
 let onExitCallback = null;
 
@@ -62,7 +79,6 @@ function setupScene(rendererInstance) {
   const reticleGeo = new THREE.RingGeometry(0.06, 0.08, 32).rotateX(-Math.PI / 2);
   const reticleMat = new THREE.MeshBasicMaterial({ color: 0xe3a63d });
   reticle = new THREE.Mesh(reticleGeo, reticleMat);
-  reticle.matrixAutoUpdate = false;
   reticle.visible = false;
   scene.add(reticle);
 }
@@ -73,16 +89,42 @@ function loadModel() {
   });
 }
 
-function placeModel() {
+async function placeModel() {
   if (!reticle.visible || placedModel) return;
+
+  // Build the pivot hierarchy: anchorGroup follows the tracked anchor pose
+  // every frame (or just stays put if anchors aren't supported), and
+  // placedModel's position/rotation are always LOCAL to it — so user
+  // gestures and anchor corrections never fight each other.
+  anchorGroup = new THREE.Group();
+  anchorGroup.position.copy(reticleSmoothed.position);
+  anchorGroup.quaternion.copy(reticleSmoothed.quaternion);
+  scene.add(anchorGroup);
+
   placedModel = loadedGltfTemplate.clone(true);
   placedModel.scale.setScalar(BASE_SCALE);
-  placedModel.position.setFromMatrixPosition(reticle.matrix);
-  placedModel.quaternion.setFromRotationMatrix(reticle.matrix);
-  scene.add(placedModel);
+  anchorGroup.add(placedModel);
+
   reticle.visible = false;
   hintEl.textContent = 'Drag to rotate · pinch to resize · two fingers to move';
   cartBtn.hidden = false;
+
+  // Try to anchor to this physical point so the object stays visually
+  // locked as you walk around it, rather than just sitting at a fixed
+  // coordinate that can drift as tracking refines itself. Not all
+  // devices/browsers support this yet, so failure here is expected on some
+  // hardware — we just fall back to the static (unanchored) placement above.
+  if (lastHitTestResult && typeof lastHitTestResult.createAnchor === 'function') {
+    try {
+      anchor = await lastHitTestResult.createAnchor();
+      console.log('[AR] anchor created — model is now world-locked with drift correction');
+    } catch (err) {
+      console.warn('[AR] anchors not supported on this device, using static placement:', err.message);
+      anchor = null;
+    }
+  } else {
+    console.warn('[AR] anchors API unavailable, using static placement');
+  }
 }
 
 function onTouchStart(e) {
@@ -133,8 +175,19 @@ function onTouchMove(e) {
     forward.normalize();
     const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
-    placedModel.position.addScaledVector(right, panX);
-    placedModel.position.addScaledVector(forward, -panY);
+    const worldOffset = new THREE.Vector3()
+      .addScaledVector(right, panX)
+      .addScaledVector(forward, -panY);
+
+    // placedModel's position is local to anchorGroup, not world space, so
+    // the pan delta needs to be rotated into anchorGroup's local frame
+    // before being applied — otherwise panning drifts sideways whenever
+    // the anchor's tracked orientation isn't perfectly level.
+    if (anchorGroup) {
+      const invQuat = anchorGroup.getWorldQuaternion(new THREE.Quaternion()).invert();
+      worldOffset.applyQuaternion(invQuat);
+    }
+    placedModel.position.add(worldOffset);
 
     touch.lastX = midX;
     touch.lastY = midY;
@@ -156,6 +209,10 @@ function onSessionEnd() {
   hitTestSourceRequested = false;
   hitTestSource = null;
   placedModel = null;
+  anchor = null;
+  anchorGroup = null;
+  lastHitTestResult = null;
+  reticleSmoothed.initialized = false;
   framesSinceReady = 0;
   framesWithHit = 0;
   overlayEl.hidden = true;
@@ -197,10 +254,25 @@ function render(timestamp, frame) {
       framesSinceReady++;
       if (results.length > 0) {
         framesWithHit++;
+        lastHitTestResult = results[0];
         const pose = results[0].getPose(referenceSpace);
+        const rawPosition = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(pose.transform.matrix));
+        const rawQuaternion = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().fromArray(pose.transform.matrix));
+
+        if (!reticleSmoothed.initialized) {
+          reticleSmoothed.position.copy(rawPosition);
+          reticleSmoothed.quaternion.copy(rawQuaternion);
+          reticleSmoothed.initialized = true;
+        } else {
+          reticleSmoothed.position.lerp(rawPosition, 1 - RETICLE_SMOOTHING);
+          reticleSmoothed.quaternion.slerp(rawQuaternion, 1 - RETICLE_SMOOTHING);
+        }
+
         reticle.visible = true;
-        reticle.matrix.fromArray(pose.transform.matrix);
+        reticle.position.copy(reticleSmoothed.position);
+        reticle.quaternion.copy(reticleSmoothed.quaternion);
       } else {
+        lastHitTestResult = null;
         reticle.visible = false;
       }
       // Lightweight on-screen diagnostics: updates roughly once a second so
@@ -209,6 +281,20 @@ function render(timestamp, frame) {
         hintEl.textContent = results.length > 0
           ? 'Surface found — tap to place'
           : `Scanning for a surface… (${framesWithHit}/${framesSinceReady} frames hit)`;
+      }
+    }
+
+    // Keep the placed model visually locked to its physical anchor point.
+    // Without this, the model just sits at whatever fixed coordinate it was
+    // given at placement time, and can appear to drift or swim relative to
+    // the real surface as the device's tracking refines itself while you
+    // walk around it. anchorGroup carries the corrected pose; placedModel's
+    // own position/rotation stay local to it, so gestures aren't affected.
+    if (placedModel && anchor && anchorGroup) {
+      const anchorPose = frame.getPose(anchor.anchorSpace, referenceSpace);
+      if (anchorPose) {
+        anchorGroup.position.setFromMatrixPosition(new THREE.Matrix4().fromArray(anchorPose.transform.matrix));
+        anchorGroup.quaternion.setFromRotationMatrix(new THREE.Matrix4().fromArray(anchorPose.transform.matrix));
       }
     }
 
