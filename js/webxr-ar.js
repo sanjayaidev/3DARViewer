@@ -21,6 +21,8 @@ let placedModel = null;
 let loadedGltfTemplate = null;
 let session = null;
 let currentModelUrl = null;
+let mixer = null;
+let clock = new THREE.Clock();
 
 // Stable world-locking: an XRAnchor (when the device supports it) tracks a
 // physical point and gets corrected by the device's own tracking system as
@@ -147,7 +149,14 @@ function setupScene(rendererInstance) {
 
 function loadModel(url) {
   return new Promise((resolve, reject) => {
-    new GLTFLoader().load(url, (gltf) => resolve(gltf.scene), undefined, reject);
+    new GLTFLoader().load(url, (gltf) => {
+      const model = gltf.scene;
+      // Extract and store animations if present
+      if (gltf.animations && gltf.animations.length > 0) {
+        model.userData.animations = gltf.animations;
+      }
+      resolve(model);
+    }, undefined, reject);
   });
 }
 
@@ -166,6 +175,13 @@ async function placeModel() {
   placedModel = loadedGltfTemplate.clone(true);
   placedModel.scale.setScalar(BASE_SCALE);
   anchorGroup.add(placedModel);
+
+  // Setup animation mixer if model has animations
+  if (placedModel.userData.animations && placedModel.userData.animations.length > 0) {
+    mixer = new THREE.AnimationMixer(placedModel);
+    const action = mixer.clipAction(placedModel.userData.animations[0]);
+    action.play();
+  }
 
   // Position baseplate under the model for visual grounding
   baseplate.position.copy(reticleSmoothed.position);
@@ -389,6 +405,8 @@ function onSessionEnd() {
   framesWithHit = 0;
   consecutiveHits = 0;
   lastHitPosition = null;
+  mixer = null;
+  clock = new THREE.Clock();
   overlayEl.hidden = true;
   cartBtn.hidden = true;
   cleanupListeners();
@@ -554,6 +572,12 @@ function render(timestamp, frame) {
           baseplate.position.y = -0.01; // Maintain offset from model
         }
       }
+    }
+
+    // Update animation mixer if animations are present
+    if (mixer && placedModel) {
+      const delta = clock.getDelta();
+      mixer.update(delta);
     }
 
     renderer.render(scene, camera);
