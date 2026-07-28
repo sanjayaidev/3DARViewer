@@ -145,32 +145,38 @@ function onSessionEnd() {
 }
 
 function render(timestamp, frame) {
-  if (!frame) return;
-  const referenceSpace = renderer.xr.getReferenceSpace();
-  const xrSession = renderer.xr.getSession();
+  try {
+    if (!frame) return;
+    const referenceSpace = renderer.xr.getReferenceSpace();
+    const xrSession = renderer.xr.getSession();
 
-  if (!hitTestSourceRequested) {
-    xrSession.requestReferenceSpace('viewer').then((viewerSpace) => {
-      xrSession.requestHitTestSource({ space: viewerSpace }).then((source) => {
-        hitTestSource = source;
+    if (!hitTestSourceRequested) {
+      xrSession.requestReferenceSpace('viewer').then((viewerSpace) => {
+        xrSession.requestHitTestSource({ space: viewerSpace }).then((source) => {
+          hitTestSource = source;
+        });
       });
-    });
-    xrSession.addEventListener('end', onSessionEnd);
-    hitTestSourceRequested = true;
-  }
-
-  if (hitTestSource && !placedModel) {
-    const results = frame.getHitTestResults(hitTestSource);
-    if (results.length > 0) {
-      const pose = results[0].getPose(referenceSpace);
-      reticle.visible = true;
-      reticle.matrix.fromArray(pose.transform.matrix);
-    } else {
-      reticle.visible = false;
+      xrSession.addEventListener('end', onSessionEnd);
+      hitTestSourceRequested = true;
     }
-  }
 
-  renderer.render(scene, camera);
+    if (hitTestSource && !placedModel) {
+      const results = frame.getHitTestResults(hitTestSource);
+      if (results.length > 0) {
+        const pose = results[0].getPose(referenceSpace);
+        reticle.visible = true;
+        reticle.matrix.fromArray(pose.transform.matrix);
+      } else {
+        reticle.visible = false;
+      }
+    }
+
+    renderer.render(scene, camera);
+  } catch (err) {
+    console.error('Advanced AR render error:', err);
+    if (hintEl) hintEl.textContent = 'AR error: ' + err.message;
+    if (renderer) renderer.setAnimationLoop(null);
+  }
 }
 
 async function start({ onExit, onAddToCart }) {
