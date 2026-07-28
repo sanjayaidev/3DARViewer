@@ -177,9 +177,10 @@ async function placeModel() {
   anchorGroup.add(placedModel);
 
   // Setup animation mixer if model has animations
-  if (placedModel.userData.animations && placedModel.userData.animations.length > 0) {
+  // Note: clone() doesn't copy userData.animations, so we check the original template
+  if (loadedGltfTemplate.userData.animations && loadedGltfTemplate.userData.animations.length > 0) {
     mixer = new THREE.AnimationMixer(placedModel);
-    const action = mixer.clipAction(placedModel.userData.animations[0]);
+    const action = mixer.clipAction(loadedGltfTemplate.userData.animations[0]);
     action.play();
   }
 
