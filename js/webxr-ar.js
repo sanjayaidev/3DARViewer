@@ -130,9 +130,10 @@ function onTouchEnd(e) {
 }
 
 function cleanupListeners() {
-  canvas.removeEventListener('touchstart', onTouchStart);
-  canvas.removeEventListener('touchmove', onTouchMove);
-  canvas.removeEventListener('touchend', onTouchEnd);
+  // Listeners live on overlayEl, not canvas — see start() for why.
+  overlayEl.removeEventListener('touchstart', onTouchStart);
+  overlayEl.removeEventListener('touchmove', onTouchMove);
+  overlayEl.removeEventListener('touchend', onTouchEnd);
 }
 
 function onSessionEnd() {
@@ -250,9 +251,14 @@ async function start({ onExit, onAddToCart }) {
   controller.addEventListener('select', placeModel);
   scene.add(controller);
 
-  canvas.addEventListener('touchstart', onTouchStart, { passive: true });
-  canvas.addEventListener('touchmove', onTouchMove, { passive: false });
-  canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+  // During an immersive-ar session with dom-overlay, only elements inside
+  // the overlay root receive real DOM touch events — the canvas itself
+  // sits outside that root and never sees touchstart/touchmove/touchend,
+  // even though it's visually on screen. Attach gestures to overlayEl
+  // instead (see the matching pointer-events change in style.css).
+  overlayEl.addEventListener('touchstart', onTouchStart, { passive: true });
+  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false });
+  overlayEl.addEventListener('touchend', onTouchEnd, { passive: true });
 
   exitBtn.addEventListener(
     'click',
