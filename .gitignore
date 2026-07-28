@@ -1,3 +1,1 @@
-(js/webxr-ar.js is a source file, so no need to ignore it)
-
-(empty)
+Nothing should be ignored based on the provided file changes, as only a JavaScript source file (`js/webxr-ar.js`) was modified and no build artifacts, dependencies, or temporary files were detected.

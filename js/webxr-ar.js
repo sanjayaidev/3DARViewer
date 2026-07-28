@@ -44,6 +44,11 @@ const RETICLE_SMOOTHING_MAX = 0.6;   // Higher = snappier but more jitter
 const POSITION_THRESHOLD = 0.001;    // Ignore micro-movements below this
 const OUTLIER_REJECTION_DIST = 0.05; // Reject jumps larger than this
 
+// Improved plane detection: track consecutive hits to confirm stable surface
+let consecutiveHits = 0;
+const MIN_CONSECUTIVE_HITS = 3; // Require 3 consecutive frames with hits before showing reticle
+let lastHitPosition = null;
+
 // Baseplate for visual grounding and one-finger drag control
 let baseplate = null;
 const BASEPLATE_RADIUS = 0.15;
@@ -171,6 +176,10 @@ async function placeModel() {
   reticle.visible = false;
   hintEl.textContent = 'Drag up/down to move · drag left/right to rotate · pinch to resize';
   cartBtn.hidden = false;
+
+  // Reset plane detection state after successful placement
+  consecutiveHits = 0;
+  lastHitPosition = null;
 
   // Try to anchor to this physical point so the object stays visually
   // locked as you walk around it, rather than just sitting at a fixed
@@ -377,6 +386,8 @@ function onSessionEnd() {
   rotationVelocity = 0;
   framesSinceReady = 0;
   framesWithHit = 0;
+  consecutiveHits = 0;
+  lastHitPosition = null;
   overlayEl.hidden = true;
   cartBtn.hidden = true;
   cleanupListeners();
@@ -421,48 +432,77 @@ function render(timestamp, frame) {
         const rawPosition = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(pose.transform.matrix));
         const rawQuaternion = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().fromArray(pose.transform.matrix));
 
-        // Enhanced stabilization with adaptive smoothing and outlier rejection
-        if (!reticleSmoothed.initialized) {
-          reticleSmoothed.position.copy(rawPosition);
-          reticleSmoothed.quaternion.copy(rawQuaternion);
-          reticleSmoothed.velocity.set(0, 0, 0);
-          reticleSmoothed.initialized = true;
-        } else {
-          // Calculate distance from last known position to detect outliers
-          const dist = reticleSmoothed.position.distanceTo(rawPosition);
-          
-          // Reject sudden jumps (outliers) that are likely tracking errors
-          if (dist < OUTLIER_REJECTION_DIST) {
-            // Adaptive smoothing: use less smoothing when moving fast, more when stable
-            const speed = dist * 60; // Approximate frames per second
-            const adaptiveSmoothing = THREE.MathUtils.clamp(
-              RETICLE_SMOOTHING_BASE + speed * 0.5,
-              RETICLE_SMOOTHING_BASE,
-              RETICLE_SMOOTHING_MAX
-            );
-            
-            // Only update if movement is above threshold (ignore micro-jitter)
-            if (dist > POSITION_THRESHOLD) {
-              reticleSmoothed.position.lerp(rawPosition, 1 - adaptiveSmoothing);
-              reticleSmoothed.quaternion.slerp(rawQuaternion, 1 - adaptiveSmoothing);
-            }
-          }
-          // If dist >= OUTLIER_REJECTION_DIST, skip this frame's data as unreliable
+        // Improved plane detection: require consecutive stable hits before showing reticle
+        // This prevents false positives from transient detections and ensures we have a real plane
+        let positionStable = true;
+        if (lastHitPosition) {
+          const distFromLast = lastHitPosition.distanceTo(rawPosition);
+          // Position should not jump too much between consecutive frames for a stable plane
+          positionStable = distFromLast < 0.02; // 2cm threshold for stability
         }
+        
+        if (positionStable) {
+          consecutiveHits++;
+        } else {
+          // Reset counter if position jumps too much (unstable detection)
+          consecutiveHits = 1; // Start fresh from this hit
+        }
+        lastHitPosition = rawPosition.clone();
 
-        reticle.visible = true;
-        reticle.position.copy(reticleSmoothed.position);
-        reticle.quaternion.copy(reticleSmoothed.quaternion);
+        // Only show reticle and allow placement after we have confirmed stable plane detection
+        if (consecutiveHits >= MIN_CONSECUTIVE_HITS) {
+          // Enhanced stabilization with adaptive smoothing and outlier rejection
+          if (!reticleSmoothed.initialized) {
+            reticleSmoothed.position.copy(rawPosition);
+            reticleSmoothed.quaternion.copy(rawQuaternion);
+            reticleSmoothed.velocity.set(0, 0, 0);
+            reticleSmoothed.initialized = true;
+          } else {
+            // Calculate distance from last known position to detect outliers
+            const dist = reticleSmoothed.position.distanceTo(rawPosition);
+            
+            // Reject sudden jumps (outliers) that are likely tracking errors
+            if (dist < OUTLIER_REJECTION_DIST) {
+              // Adaptive smoothing: use less smoothing when moving fast, more when stable
+              const speed = dist * 60; // Approximate frames per second
+              const adaptiveSmoothing = THREE.MathUtils.clamp(
+                RETICLE_SMOOTHING_BASE + speed * 0.5,
+                RETICLE_SMOOTHING_BASE,
+                RETICLE_SMOOTHING_MAX
+              );
+              
+              // Only update if movement is above threshold (ignore micro-jitter)
+              if (dist > POSITION_THRESHOLD) {
+                reticleSmoothed.position.lerp(rawPosition, 1 - adaptiveSmoothing);
+                reticleSmoothed.quaternion.slerp(rawQuaternion, 1 - adaptiveSmoothing);
+              }
+            }
+            // If dist >= OUTLIER_REJECTION_DIST, skip this frame's data as unreliable
+          }
+
+          reticle.visible = true;
+          reticle.position.copy(reticleSmoothed.position);
+          reticle.quaternion.copy(reticleSmoothed.quaternion);
+        } else {
+          // Still scanning - don't show reticle yet, keep user informed
+          reticle.visible = false;
+        }
       } else {
+        // No hits this frame - reset consecutive counter
+        consecutiveHits = 0;
         lastHitTestResult = null;
         reticle.visible = false;
       }
       // Lightweight on-screen diagnostics: updates roughly once a second so
       // you can see live hit-test activity without a devtools connection.
       if (framesSinceReady % 60 === 0 && hintEl) {
-        hintEl.textContent = results.length > 0
-          ? 'Surface found — tap to place'
-          : `Scanning for a surface… (${framesWithHit}/${framesSinceReady} frames hit)`;
+        if (consecutiveHits >= MIN_CONSECUTIVE_HITS) {
+          hintEl.textContent = 'Surface found — tap to place';
+        } else if (results.length > 0) {
+          hintEl.textContent = `Detecting surface... (${consecutiveHits}/${MIN_CONSECUTIVE_HITS})`;
+        } else {
+          hintEl.textContent = `Scanning for a surface… (${framesWithHit}/${framesSinceReady} frames hit)`;
+        }
       }
     }
 
