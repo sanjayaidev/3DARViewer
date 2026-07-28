@@ -47,7 +47,7 @@ const OUTLIER_REJECTION_DIST = 0.05; // Reject jumps larger than this
 
 // Improved plane detection: track consecutive hits to confirm stable surface
 let consecutiveHits = 0;
-const MIN_CONSECUTIVE_HITS = 3; // Require 3 consecutive frames with hits before showing reticle
+const MIN_CONSECUTIVE_HITS = 2; // Require 2 consecutive frames with hits before showing reticle (optimized for quick detection)
 let lastHitPosition = null;
 
 // Baseplate for visual grounding and one-finger drag control

@@ -1,1 +1,3 @@
-(product-cake.html, product-dish.html, product-salmon.html are all source files, so nothing should be ignored)
+(js/webxr-ar.js is a source file, so no need to ignore it)
+
+(empty)
