@@ -308,7 +308,12 @@ body {
 .ar-overlay {
   position: fixed;
   inset: 0;
-  pointer-events: none;
+  /* Was pointer-events: none. This element (the dom-overlay root) is the
+     only thing that receives real touch events during an immersive-ar
+     session — the canvas underneath does not, even though it's what you
+     see. It needs pointer-events: auto so rotate/pinch/pan gestures reach
+     it; the hint pill below still opts out individually. */
+  pointer-events: auto;
   z-index: 50;
 }
 
