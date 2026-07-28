@@ -47,7 +47,7 @@ const OUTLIER_REJECTION_DIST = 0.05; // Reject jumps larger than this
 
 // Improved plane detection: track consecutive hits to confirm stable surface
 let consecutiveHits = 0;
-const MIN_CONSECUTIVE_HITS = 2; // Require 2 consecutive frames with hits before showing reticle (optimized for quick detection)
+const MIN_CONSECUTIVE_HITS = 1; // Require only 1 frame with hit for instant surface detection
 let lastHitPosition = null;
 
 // Baseplate for visual grounding and one-finger drag control
@@ -443,10 +443,10 @@ function render(timestamp, frame) {
         }
         
         if (positionStable) {
-          consecutiveHits++;
+          consecutiveHits = MIN_CONSECUTIVE_HITS; // Immediately ready on first stable hit
         } else {
           // Reset counter if position jumps too much (unstable detection)
-          consecutiveHits = 1; // Start fresh from this hit
+          consecutiveHits = 0; // Must get a new stable hit
         }
         lastHitPosition = rawPosition.clone();
 
@@ -489,8 +489,7 @@ function render(timestamp, frame) {
           reticle.visible = false;
         }
       } else {
-        // No hits this frame - reset consecutive counter
-        consecutiveHits = 0;
+        // No hits this frame - keep counter as-is (don't reset on brief dropouts)
         lastHitTestResult = null;
         reticle.visible = false;
       }
