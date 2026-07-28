@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Ember Room — Menu</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="site-mark">The Ember Room</span>
+</header>
+
+<main class="products-grid">
+  
+  <a href="product-salmon.html" class="product-card-link">
+    <article class="product-card">
+      <model-viewer
+        class="viewer"
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+        alt="3D model of Charred Miso Salmon"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        exposure="1"
+        environment-image="neutral"
+        interaction-prompt="none"
+      ></model-viewer>
+      <div class="product-card-info">
+        <p class="product-card-category">Mains · Robata Grill</p>
+        <h2 class="product-card-title">Charred Miso Salmon</h2>
+        <p class="product-card-desc">Cedar-smoked, saikyo miso glaze, charred scallion, sesame.</p>
+        <div class="product-card-footer">
+          <span class="product-card-price">$28</span>
+          <span class="view-product">View product →</span>
+        </div>
+      </div>
+    </article>
+  </a>
+
+  <a href="product-cake.html" class="product-card-link">
+    <article class="product-card">
+      <model-viewer
+        class="viewer"
+        src="assets/models/cake.glb"
+        alt="3D model of cake"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        exposure="1"
+        environment-image="neutral"
+        interaction-prompt="none"
+      ></model-viewer>
+      <div class="product-card-info">
+        <p class="product-card-category">Desserts · Pastry</p>
+        <h2 class="product-card-title">Layer Cake</h2>
+        <p class="product-card-desc">A festive layered cake model ready to preview in 3D.</p>
+        <div class="product-card-footer">
+          <span class="product-card-price">$18</span>
+          <span class="view-product">View product →</span>
+        </div>
+      </div>
+    </article>
+  </a>
+
+  <a href="product-dish.html" class="product-card-link">
+    <article class="product-card">
+      <model-viewer
+        class="viewer"
+        src="assets/models/dish.glb"
+        alt="3D model of dish"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        exposure="1"
+        environment-image="neutral"
+        interaction-prompt="none"
+      ></model-viewer>
+      <div class="product-card-info">
+        <p class="product-card-category">Mains · Signature</p>
+        <h2 class="product-card-title">Signature Dish</h2>
+        <p class="product-card-desc">A plated serving model with a polished presentation.</p>
+        <div class="product-card-footer">
+          <span class="product-card-price">$24</span>
+          <span class="view-product">View product →</span>
+        </div>
+      </div>
+    </article>
+  </a>
+
+</main>
+
+<!-- model-viewer for the cards -->
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+
+</body>
+</html>

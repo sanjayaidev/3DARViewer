@@ -1,1 +1,1 @@
-Nothing should be ignored based on the provided file changes, as only a JavaScript source file (`js/webxr-ar.js`) was modified and no build artifacts, dependencies, or temporary files were detected.
+Nothing should be ignored based on the provided file changes, as they only include HTML and CSS source files which are not build artifacts, dependencies, or temporary files.
