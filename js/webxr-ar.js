@@ -14,6 +14,8 @@ const BASE_SCALE = 0.35;
 let renderer, scene, camera, reticle, controller;
 let hitTestSource = null;
 let hitTestSourceRequested = false;
+let framesSinceReady = 0;
+let framesWithHit = 0;
 let placedModel = null;
 let loadedGltfTemplate = null;
 let session = null;
@@ -137,6 +139,8 @@ function onSessionEnd() {
   hitTestSourceRequested = false;
   hitTestSource = null;
   placedModel = null;
+  framesSinceReady = 0;
+  framesWithHit = 0;
   overlayEl.hidden = true;
   cartBtn.hidden = true;
   cleanupListeners();
@@ -151,23 +155,43 @@ function render(timestamp, frame) {
     const xrSession = renderer.xr.getSession();
 
     if (!hitTestSourceRequested) {
-      xrSession.requestReferenceSpace('viewer').then((viewerSpace) => {
-        xrSession.requestHitTestSource({ space: viewerSpace }).then((source) => {
+      hitTestSourceRequested = true; // set immediately so we never re-enter this branch
+      xrSession
+        .requestReferenceSpace('viewer')
+        .then((viewerSpace) => xrSession.requestHitTestSource({ space: viewerSpace }))
+        .then((source) => {
           hitTestSource = source;
+          console.log('[AR] hit-test source ready');
+        })
+        .catch((err) => {
+          // Previously this rejection was unhandled, so a failure here left
+          // hitTestSource permanently null with no visible error — the
+          // reticle would simply never appear and the hint text would stay
+          // stuck on "find a surface" forever, looking identical to a
+          // real-world tracking issue.
+          console.error('[AR] failed to set up hit-test source:', err);
+          if (hintEl) hintEl.textContent = 'Hit-test setup failed: ' + err.message;
         });
-      });
       xrSession.addEventListener('end', onSessionEnd);
-      hitTestSourceRequested = true;
     }
 
     if (hitTestSource && !placedModel) {
       const results = frame.getHitTestResults(hitTestSource);
+      framesSinceReady++;
       if (results.length > 0) {
+        framesWithHit++;
         const pose = results[0].getPose(referenceSpace);
         reticle.visible = true;
         reticle.matrix.fromArray(pose.transform.matrix);
       } else {
         reticle.visible = false;
+      }
+      // Lightweight on-screen diagnostics: updates roughly once a second so
+      // you can see live hit-test activity without a devtools connection.
+      if (framesSinceReady % 60 === 0 && hintEl) {
+        hintEl.textContent = results.length > 0
+          ? 'Surface found — tap to place'
+          : `Scanning for a surface… (${framesWithHit}/${framesSinceReady} frames hit)`;
       }
     }
 
