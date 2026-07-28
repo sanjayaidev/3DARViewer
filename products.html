@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Menu — The Ember Room</title>
+
+<!-- Fonts: a characterful serif for the dish name, a clean grotesk for everything else -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<!-- model-viewer handles View 3D + Simple AR natively -->
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <span class="site-mark">The Ember Room</span>
+  <span class="header-spacer" aria-hidden="true"></span>
+</header>
+
+<main class="menu-stage">
+
+  <section class="menu-intro">
+    <h1 class="menu-title">Our Menu</h1>
+    <p class="menu-subtitle">Explore our dishes in 3D before you order</p>
+  </section>
+
+  <!-- Product Grid -->
+  <div class="product-grid">
+    
+    <!-- Product Card 1: Charred Miso Salmon -->
+    <article class="product-card">
+      <div class="card-viewer">
+        <model-viewer
+          class="card-model"
+          src="assets/models/dish.glb"
+          alt="3D model of Charred Miso Salmon"
+          camera-controls
+          auto-rotate
+          shadow-intensity="1"
+          exposure="1"
+          environment-image="neutral"
+          interaction-prompt="none"
+        >
+        </model-viewer>
+      </div>
+      <div class="card-info">
+        <p class="card-category">Mains · Robata Grill</p>
+        <h2 class="card-name">Charred Miso Salmon</h2>
+        <p class="card-desc">Cedar-smoked, saikyo miso glaze, charred scallion, sesame.</p>
+        <div class="card-footer">
+          <span class="card-price">$28</span>
+          <a href="index.html" class="view-detail-btn">View in AR</a>
+        </div>
+      </div>
+    </article>
+
+    <!-- Product Card 2: Placeholder for future items -->
+    <article class="product-card coming-soon">
+      <div class="card-viewer">
+        <div class="coming-soon-badge">Coming Soon</div>
+      </div>
+      <div class="card-info">
+        <p class="card-category">Mains</p>
+        <h2 class="card-name">New Dish</h2>
+        <p class="card-desc">Something special is being prepared.</p>
+        <div class="card-footer">
+          <span class="card-price">—</span>
+          <span class="view-detail-btn disabled">Not Available</span>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+</main>
+
+<style>
+  .menu-stage {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 60px;
+  }
+
+  .menu-intro {
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  .menu-title {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(32px, 8vw, 48px);
+    line-height: 1.1;
+    margin: 0 0 12px;
+    color: var(--color-ivory);
+  }
+
+  .menu-subtitle {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--color-ivory-dim);
+    margin: 0;
+  }
+
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 0 20px;
+  }
+
+  .product-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .product-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-amber);
+  }
+
+  .product-card.coming-soon {
+    opacity: 0.7;
+  }
+
+  .card-viewer {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: radial-gradient(120% 120% at 50% 15%, var(--color-surface-raised) 0%, var(--color-surface) 55%, var(--color-bg) 100%);
+    position: relative;
+  }
+
+  .card-model {
+    width: 100%;
+    height: 100%;
+    --poster-color: transparent;
+  }
+
+  .coming-soon-badge {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ivory-dim);
+    background: rgba(23, 20, 15, 0.5);
+  }
+
+  .card-info {
+    padding: 20px;
+  }
+
+  .card-category {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-amber);
+    margin: 0 0 10px;
+  }
+
+  .card-name {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.2;
+    margin: 0 0 10px;
+    color: var(--color-ivory);
+  }
+
+  .card-desc {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-ivory-dim);
+    margin: 0 0 16px;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-price {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    color: var(--color-ivory);
+  }
+
+  .view-detail-btn {
+    background: var(--color-amber);
+    color: var(--color-bg);
+    border: none;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .view-detail-btn:hover {
+    background: var(--color-ember);
+  }
+
+  .view-detail-btn:active {
+    transform: scale(0.97);
+  }
+
+  .view-detail-btn.disabled {
+    background: var(--color-surface-raised);
+    color: var(--color-ivory-dim);
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  @media (max-width: 380px) {
+    .product-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+</body>
+</html>

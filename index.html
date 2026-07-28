@@ -42,7 +42,7 @@
     <model-viewer
       id="viewer"
       class="viewer"
-      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+      src="assets/models/dish.glb"
       ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
       alt="3D model of Charred Miso Salmon"
       ar
@@ -55,13 +55,38 @@
       environment-image="neutral"
       interaction-prompt="none"
       autoplay
-      autoplay
     >
       <div class="poster-note" slot="poster">Loading dish&hellip;</div>
     </model-viewer>
 
     <!-- Advanced AR takes over this canvas when active; hidden otherwise -->
     <canvas id="xr-canvas" class="xr-canvas" hidden></canvas>
+
+    <!-- Animation controls for View 3D mode -->
+    <div class="animation-controls" id="view3dAnimationControls">
+      <button type="button" id="btnPlay" class="anim-btn" title="Play animation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button type="button" id="btnPause" class="anim-btn" title="Pause animation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button type="button" id="btnRestart" class="anim-btn" title="Restart animation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      </button>
+    </div>
+
+    <!-- Animation controls for Advanced AR mode (shown only during AR session) -->
+    <div class="animation-controls ar-animation-controls" id="arAnimationControls" hidden>
+      <button type="button" id="btnPlayAR" class="anim-btn" title="Play animation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button type="button" id="btnPauseAR" class="anim-btn" title="Pause animation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button type="button" id="btnRestartAR" class="anim-btn" title="Restart animation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      </button>
+    </div>
 
     <div id="advancedArNotice" class="ar-notice" hidden>
       <p id="advancedArNoticeText"></p>
@@ -114,6 +139,16 @@
   const PLACEHOLDER_GLB = 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
   const PLACEHOLDER_USDZ = 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz';
 
+  // Animation control buttons (View 3D mode)
+  const btnPlay = document.getElementById('btnPlay');
+  const btnPause = document.getElementById('btnPause');
+  const btnRestart = document.getElementById('btnRestart');
+  
+  // Animation control buttons (Advanced AR mode)
+  const btnPlayAR = document.getElementById('btnPlayAR');
+  const btnPauseAR = document.getElementById('btnPauseAR');
+  const btnRestartAR = document.getElementById('btnRestartAR');
+
   // If assets/models/dish.glb doesn't exist yet (or fails to load), fall back
   // to the public placeholder so the page never just shows a blank viewer.
   viewer.addEventListener('error', (event) => {
@@ -121,6 +156,75 @@
       console.warn('assets/models/dish.glb not found — falling back to placeholder model.');
       viewer.src = PLACEHOLDER_GLB;
       viewer.iosSrc = PLACEHOLDER_USDZ;
+    }
+  });
+
+  // === View 3D Mode Animation Controls ===
+  // Play: resume auto-rotate and any model animations
+  btnPlay.addEventListener('click', () => {
+    viewer.autoRotate = true;
+    // If model has animations, play them
+    if (viewer.model && viewer.model.animations && viewer.model.animations.length > 0) {
+      viewer.model.animations.forEach(anim => anim.play());
+    }
+  });
+
+  // Pause: stop auto-rotate and pause model animations
+  btnPause.addEventListener('click', () => {
+    viewer.autoRotate = false;
+    if (viewer.model && viewer.model.animations && viewer.model.animations.length > 0) {
+      viewer.model.animations.forEach(anim => anim.pause());
+    }
+  });
+
+  // Restart: reset camera and restart animations from beginning
+  btnRestart.addEventListener('click', () => {
+    viewer.cameraOrbit = '0deg 75deg 105%';
+    viewer.autoRotate = true;
+    if (viewer.model && viewer.model.animations && viewer.model.animations.length > 0) {
+      viewer.model.animations.forEach(anim => {
+        anim.currentTime = 0;
+        anim.play();
+      });
+    }
+  });
+
+  // === Advanced AR Mode Animation Controls ===
+  // These will be wired up when Advanced AR session starts
+  let arModel = null;
+  let arAnimationsPlaying = true;
+
+  window.setARModel = (model) => {
+    arModel = model;
+  };
+
+  window.setARAnimationState = (isPlaying) => {
+    arAnimationsPlaying = isPlaying;
+  };
+
+  window.getARModel = () => arModel;
+
+  btnPlayAR.addEventListener('click', () => {
+    arAnimationsPlaying = true;
+    if (arModel && arModel.animations && arModel.animations.length > 0) {
+      arModel.animations.forEach(anim => anim.play());
+    }
+  });
+
+  btnPauseAR.addEventListener('click', () => {
+    arAnimationsPlaying = false;
+    if (arModel && arModel.animations && arModel.animations.length > 0) {
+      arModel.animations.forEach(anim => anim.pause());
+    }
+  });
+
+  btnRestartAR.addEventListener('click', () => {
+    arAnimationsPlaying = true;
+    if (arModel && arModel.animations && arModel.animations.length > 0) {
+      arModel.animations.forEach(anim => {
+        anim.currentTime = 0;
+        anim.play();
+      });
     }
   });
   const notice = document.getElementById('advancedArNotice');
@@ -180,11 +284,13 @@
 
     viewer.hidden = true;
     xrCanvas.hidden = false;
+    document.getElementById('arAnimationControls').hidden = false;
 
     window.AdvancedAR.start({
       onExit: () => {
         xrCanvas.hidden = true;
         viewer.hidden = false;
+        document.getElementById('arAnimationControls').hidden = true;
         setActiveTab('view3d');
       },
       onAddToCart: () => {

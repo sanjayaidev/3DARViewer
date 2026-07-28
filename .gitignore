@@ -1,1 +1,1 @@
-Nothing needs to be added to .gitignore since only a JavaScript source file was modified and no build artifacts, dependencies, or temporary files were included in the changes.
+(products.html is a source file, css/style.css and js/webxr-ar.js are source files, index.html is a source file - all are legitimate source code files, not build artifacts or temporary files)

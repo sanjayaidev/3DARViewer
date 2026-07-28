@@ -302,6 +302,47 @@ body {
 }
 
 /* ============================================================
+   Animation controls (View 3D mode)
+   ============================================================ */
+.animation-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 15;
+}
+
+.anim-btn {
+  background: rgba(23, 20, 15, 0.85);
+  color: var(--color-ivory-dim);
+  border: 1px solid var(--color-line-strong);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.anim-btn:hover {
+  background: var(--color-amber);
+  color: var(--color-bg);
+  border-color: var(--color-amber);
+}
+
+.anim-btn:active {
+  transform: scale(0.95);
+}
+
+.ar-animation-controls {
+  bottom: 100px;
+}
+
+/* ============================================================
    Advanced AR overlay (rendered on top of the camera feed
    during an active WebXR session)
    ============================================================ */

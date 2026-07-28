@@ -161,6 +161,11 @@ async function placeModel() {
   placedModel.scale.setScalar(BASE_SCALE);
   anchorGroup.add(placedModel);
 
+  // Expose the model to the main page for animation controls
+  if (window.setARModel) {
+    window.setARModel(placedModel);
+  }
+
   // Position baseplate under the model for visual grounding
   baseplate.position.copy(reticleSmoothed.position);
   baseplate.position.y -= 0.01; // Slightly below the model's feet
@@ -369,6 +374,12 @@ function onSessionEnd() {
   rotationVelocity = 0;
   framesSinceReady = 0;
   framesWithHit = 0;
+  
+  // Clear AR model reference for animation controls
+  if (window.setARModel) {
+    window.setARModel(null);
+  }
+  
   overlayEl.hidden = true;
   cartBtn.hidden = true;
   cleanupListeners();
