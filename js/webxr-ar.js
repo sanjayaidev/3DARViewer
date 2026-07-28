@@ -257,6 +257,7 @@ function onTouchMove(e) {
     const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
     
     // Convert screen delta to world movement (flattened to floor plane)
+    // Vertical drag moves forward/back, horizontal drag moves left/right
     const panX = deltaX * 0.004;
     const panY = deltaY * 0.004;
     
@@ -271,9 +272,12 @@ function onTouchMove(e) {
     }
     placedModel.position.add(worldOffset);
     
-    // Also rotate based on horizontal drag (intuitive twist gesture)
-    rotationVelocity = deltaX * 0.008;
-    placedModel.rotation.y += rotationVelocity;
+    // Only rotate on significant horizontal drag (intentional twist gesture)
+    // Ignore rotation during vertical drags to prevent orbiting
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 0.5 && Math.abs(deltaX) > 2) {
+      rotationVelocity = deltaX * 0.008;
+      placedModel.rotation.y += rotationVelocity;
+    }
     
     touch.lastX = x;
     touch.lastY = y;
