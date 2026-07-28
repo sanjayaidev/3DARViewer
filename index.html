@@ -3,84 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Charred Miso Salmon — AR Menu</title>
+<title>The Ember Room — Menu</title>
 
-<!-- Fonts: a characterful serif for the dish name, a clean grotesk for everything else -->
+<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/style.css">
-
-<!-- model-viewer handles View 3D + Simple AR natively -->
-<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
-
-<!-- Three.js, for Advanced AR mode -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-<script type="module" src="js/webxr-ar.js"></script>
 </head>
 <body>
 
 <header class="site-header">
-  <a href="products.html" class="back-link" aria-label="Back to menu">&larr;</a>
   <span class="site-mark">The Ember Room</span>
-  <span class="header-spacer" aria-hidden="true"></span>
 </header>
 
-<main class="product-stage">
-
-  <!-- Viewer -->
-  <section class="viewer-wrap" aria-label="Dish viewer">
-
-    <model-viewer
-      id="viewer"
-      class="viewer"
-      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-      ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
-      alt="3D model of Charred Miso Salmon"
-      ar
-      ar-modes="webxr scene-viewer quick-look"
-      camera-controls
-      auto-rotate
-      auto-rotate-delay="1200"
-      shadow-intensity="1"
-      exposure="1"
-      environment-image="neutral"
-      interaction-prompt="none"
-      autoplay
-      autoplay
-    >
-      <div class="poster-note" slot="poster">Loading dish&hellip;</div>
-    </model-viewer>
-
-    <!-- Advanced AR takes over this canvas when active; hidden otherwise -->
-    <canvas id="xr-canvas" class="xr-canvas" hidden></canvas>
-
-    <div id="advancedArNotice" class="ar-notice" hidden>
-      <p id="advancedArNoticeText"></p>
-      <button type="button" id="advancedArNoticeClose" class="notice-close">Dismiss</button>
-    </div>
-
-    <!-- Rendered on top of the camera feed only during an active Advanced AR session -->
-    <div id="arOverlay" class="ar-overlay" hidden>
-      <p class="ar-overlay-hint" id="arHint"></p>
-      <div class="ar-overlay-controls">
-        <button type="button" id="arExitBtn" class="ar-exit-btn">Exit AR</button>
-        <button type="button" id="arAddToCartBtn" class="ar-cart-btn" hidden>Add to cart</button>
+<main class="products-grid">
+  
+  <a href="product-salmon.html" class="product-card-link">
+    <article class="product-card">
+      <model-viewer
+        class="viewer"
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+        alt="3D model of Charred Miso Salmon"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        exposure="1"
+        environment-image="neutral"
+        interaction-prompt="none"
+      ></model-viewer>
+      <div class="product-card-info">
+        <p class="product-card-category">Mains · Robata Grill</p>
+        <h2 class="product-card-title">Charred Miso Salmon</h2>
+        <p class="product-card-desc">Cedar-smoked, saikyo miso glaze, charred scallion, sesame.</p>
+        <div class="product-card-footer">
+          <span class="product-card-price">$28</span>
+          <span class="view-product">View product →</span>
+        </div>
       </div>
-    </div>
+    </article>
+  </a>
 
-  </section>
-
-  <section class="model-gallery" aria-label="Additional products">
-    <article class="viewer-card">
+  <a href="product-cake.html" class="product-card-link">
+    <article class="product-card">
       <model-viewer
         class="viewer"
         src="assets/models/cake.glb"
@@ -92,17 +58,20 @@
         environment-image="neutral"
         interaction-prompt="none"
       ></model-viewer>
-      <div class="viewer-card-info">
-        <h2 class="viewer-card-title">Layer Cake</h2>
-        <p class="viewer-card-desc">A festive layered cake model ready to preview in 3D.</p>
-        <div class="viewer-card-footer">
-          <span class="viewer-card-price">$18</span>
-          <button type="button" class="add-to-cart">View product</button>
+      <div class="product-card-info">
+        <p class="product-card-category">Desserts · Pastry</p>
+        <h2 class="product-card-title">Layer Cake</h2>
+        <p class="product-card-desc">A festive layered cake model ready to preview in 3D.</p>
+        <div class="product-card-footer">
+          <span class="product-card-price">$18</span>
+          <span class="view-product">View product →</span>
         </div>
       </div>
     </article>
+  </a>
 
-    <article class="viewer-card">
+  <a href="product-dish.html" class="product-card-link">
+    <article class="product-card">
       <model-viewer
         class="viewer"
         src="assets/models/dish.glb"
@@ -114,139 +83,22 @@
         environment-image="neutral"
         interaction-prompt="none"
       ></model-viewer>
-      <div class="viewer-card-info">
-        <h2 class="viewer-card-title">Signature Dish</h2>
-        <p class="viewer-card-desc">A plated serving model with a polished presentation.</p>
-        <div class="viewer-card-footer">
-          <span class="viewer-card-price">$24</span>
-          <button type="button" class="add-to-cart">View product</button>
+      <div class="product-card-info">
+        <p class="product-card-category">Mains · Signature</p>
+        <h2 class="product-card-title">Signature Dish</h2>
+        <p class="product-card-desc">A plated serving model with a polished presentation.</p>
+        <div class="product-card-footer">
+          <span class="product-card-price">$24</span>
+          <span class="view-product">View product →</span>
         </div>
       </div>
     </article>
-  </section>
-
-  <!-- Mode switch -->
-  <div class="mode-switch" role="tablist" aria-label="Viewing mode">
-    <button type="button" class="mode-tab is-active" id="modeView3D" role="tab" aria-selected="true">
-      <span class="mode-index">01</span> View 3D
-    </button>
-    <button type="button" class="mode-tab" id="modeSimpleAR" role="tab" aria-selected="false">
-      <span class="mode-index">02</span> Simple AR
-    </button>
-    <button type="button" class="mode-tab" id="modeAdvancedAR" role="tab" aria-selected="false">
-      <span class="mode-index">03</span> Advanced AR
-    </button>
-  </div>
-
-  <!-- Product info -->
-  <section class="product-info">
-    <p class="product-category">Mains &middot; Robata Grill</p>
-    <h1 class="product-name">Charred Miso Salmon</h1>
-    <p class="product-desc">Cedar-smoked, saikyo miso glaze, charred scallion, sesame. Plated at true portion size — rotate to see it exactly as it arrives.</p>
-    <div class="product-footer">
-      <span class="product-price">$28</span>
-      <button type="button" class="add-to-cart" id="addToCart">Add to cart</button>
-    </div>
-  </section>
+  </a>
 
 </main>
 
-<script>
-  // Minimal mode-switch wiring. Advanced AR module (Three.js + WebXR) plugs in
-  // via js/webxr-ar.js in a later step — for now it just announces itself.
-
-  const viewer = document.getElementById('viewer');
-  const xrCanvas = document.getElementById('xr-canvas');
-  const PLACEHOLDER_GLB = 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
-  const PLACEHOLDER_USDZ = 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz';
-
-  // If assets/models/dish.glb doesn't exist yet (or fails to load), fall back
-  // to the public placeholder so the page never just shows a blank viewer.
-  viewer.addEventListener('error', (event) => {
-    if (viewer.src && viewer.src.includes('assets/models/dish.glb')) {
-      console.warn('assets/models/dish.glb not found — falling back to placeholder model.');
-      viewer.src = PLACEHOLDER_GLB;
-      viewer.iosSrc = PLACEHOLDER_USDZ;
-    }
-  });
-  const notice = document.getElementById('advancedArNotice');
-  const noticeText = document.getElementById('advancedArNoticeText');
-  const noticeClose = document.getElementById('advancedArNoticeClose');
-
-  const tabs = {
-    view3d: document.getElementById('modeView3D'),
-    simpleAr: document.getElementById('modeSimpleAR'),
-    advancedAr: document.getElementById('modeAdvancedAR'),
-  };
-
-  function setActiveTab(activeKey) {
-    Object.entries(tabs).forEach(([key, el]) => {
-      const isActive = key === activeKey;
-      el.classList.toggle('is-active', isActive);
-      el.setAttribute('aria-selected', String(isActive));
-    });
-  }
-
-  tabs.view3d.addEventListener('click', () => {
-    setActiveTab('view3d');
-    notice.hidden = true;
-    xrCanvas.hidden = true;
-    viewer.hidden = false;
-    viewer.cameraOrbit = '0deg 75deg 105%';
-  });
-
-  tabs.simpleAr.addEventListener('click', () => {
-    setActiveTab('simpleAr');
-    notice.hidden = true;
-    if (viewer.canActivateAR) {
-      viewer.activateAR();
-    } else {
-      noticeText.textContent = 'Simple AR isn\u2019t available on this browser/device. Try opening this page on a phone with Chrome (Android) or Safari (iPhone).';
-      notice.hidden = false;
-    }
-  });
-
-  tabs.advancedAr.addEventListener('click', async () => {
-    setActiveTab('advancedAr');
-    notice.hidden = true;
-
-    if (!window.AdvancedAR) {
-      noticeText.textContent = 'Advanced AR is still loading — give it a second and tap again.';
-      notice.hidden = false;
-      return;
-    }
-
-    const supported = await window.AdvancedAR.isSupported();
-    if (!supported) {
-      noticeText.textContent = 'Advanced AR needs Chrome on an AR-capable Android device. Try Simple AR instead.';
-      notice.hidden = false;
-      setActiveTab('view3d');
-      return;
-    }
-
-    viewer.hidden = true;
-    xrCanvas.hidden = false;
-
-    window.AdvancedAR.start({
-      onExit: () => {
-        xrCanvas.hidden = true;
-        viewer.hidden = false;
-        setActiveTab('view3d');
-      },
-      onAddToCart: () => {
-        console.log('Added to cart from Advanced AR (cart wiring comes later).');
-      },
-    });
-  });
-
-  noticeClose.addEventListener('click', () => {
-    notice.hidden = true;
-  });
-
-  document.getElementById('addToCart').addEventListener('click', () => {
-    alert('Cart wiring comes later \u2014 this button is just a stub for now.');
-  });
-</script>
+<!-- model-viewer for the cards -->
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 
 </body>
 </html>
