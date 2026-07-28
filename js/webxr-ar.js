@@ -20,6 +20,7 @@ let framesWithHit = 0;
 let placedModel = null;
 let loadedGltfTemplate = null;
 let session = null;
+let currentModelUrl = null;
 
 // Stable world-locking: an XRAnchor (when the device supports it) tracks a
 // physical point and gets corrected by the device's own tracking system as
@@ -144,9 +145,9 @@ function setupScene(rendererInstance) {
   scene.add(baseplate);
 }
 
-function loadModel() {
+function loadModel(url) {
   return new Promise((resolve, reject) => {
-    new GLTFLoader().load(MODEL_URL, (gltf) => resolve(gltf.scene), undefined, reject);
+    new GLTFLoader().load(url, (gltf) => resolve(gltf.scene), undefined, reject);
   });
 }
 
@@ -564,9 +565,11 @@ function render(timestamp, frame) {
   }
 }
 
-async function start({ onExit, onAddToCart }) {
+async function start({ onExit, onAddToCart, modelUrl }) {
   onExitCallback = onExit;
 
+  // Use provided model URL or default to Astronaut
+  currentModelUrl = modelUrl || MODEL_URL;
   canvas = document.getElementById('xr-canvas');
   overlayEl = document.getElementById('arOverlay');
   hintEl = document.getElementById('arHint');
@@ -620,7 +623,7 @@ async function start({ onExit, onAddToCart }) {
   renderer.xr.setReferenceSpaceType('local');
 
   try {
-    loadedGltfTemplate = await loadModel();
+    loadedGltfTemplate = await loadModel(currentModelUrl);
   } catch (err) {
     console.error('Failed to load AR model:', err);
     hintEl.textContent = 'Could not load the 3D model. Try again.';
