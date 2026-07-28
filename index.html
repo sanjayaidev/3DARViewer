@@ -31,8 +31,8 @@
     <model-viewer
       id="viewer"
       class="viewer"
-      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-      ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
+      src="assets/models/dish.glb"
+      ios-src="assets/models/dish.usdz"
       alt="3D model of Charred Miso Salmon"
       ar
       ar-modes="webxr scene-viewer quick-look"
@@ -89,6 +89,18 @@
 
   const viewer = document.getElementById('viewer');
   const xrCanvas = document.getElementById('xr-canvas');
+  const PLACEHOLDER_GLB = 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
+  const PLACEHOLDER_USDZ = 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz';
+
+  // If assets/models/dish.glb doesn't exist yet (or fails to load), fall back
+  // to the public placeholder so the page never just shows a blank viewer.
+  viewer.addEventListener('error', (event) => {
+    if (viewer.src && viewer.src.includes('assets/models/dish.glb')) {
+      console.warn('assets/models/dish.glb not found — falling back to placeholder model.');
+      viewer.src = PLACEHOLDER_GLB;
+      viewer.iosSrc = PLACEHOLDER_USDZ;
+    }
+  });
   const notice = document.getElementById('advancedArNotice');
   const noticeText = document.getElementById('advancedArNoticeText');
   const noticeClose = document.getElementById('advancedArNoticeClose');
