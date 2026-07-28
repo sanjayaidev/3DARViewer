@@ -169,7 +169,7 @@ async function placeModel() {
   anchorGroup.add(baseplate);
 
   reticle.visible = false;
-  hintEl.textContent = 'Drag to move · rotate with one finger · pinch to resize';
+  hintEl.textContent = 'Drag up/down to move · drag left/right to rotate · pinch to resize';
   cartBtn.hidden = false;
 
   // Try to anchor to this physical point so the object stays visually
@@ -235,8 +235,7 @@ function onTouchMove(e) {
   if (!placedModel || !touch.mode) return;
   e.preventDefault();
 
-  // Single finger drag: move the model on the horizontal plane
-  // with inertia for natural, smooth motion
+  // Single finger drag: vertical drags move the model, horizontal drags rotate in place
   if (touch.mode === 'drag' && e.touches.length === 1) {
     const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
@@ -249,34 +248,43 @@ function onTouchMove(e) {
     dragVelocity.x = deltaX / deltaTime * 16; // Normalize to ~60fps
     dragVelocity.y = deltaY / deltaTime * 16;
     
-    // Get camera direction for proper world-space movement
-    const forward = new THREE.Vector3();
-    controller.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    // Determine gesture intent: mostly horizontal = rotate, mostly vertical = pan
+    const isHorizontalDrag = Math.abs(deltaX) > Math.abs(deltaY) * 1.5;
     
-    // Convert screen delta to world movement (flattened to floor plane)
-    // Vertical drag moves forward/back, horizontal drag moves left/right
-    const panX = deltaX * 0.004;
-    const panY = deltaY * 0.004;
-    
-    const worldOffset = new THREE.Vector3()
-      .addScaledVector(right, panX)
-      .addScaledVector(forward, -panY);
-    
-    // Apply offset in anchorGroup's local space
-    if (anchorGroup) {
-      const invQuat = anchorGroup.getWorldQuaternion(new THREE.Quaternion()).invert();
-      worldOffset.applyQuaternion(invQuat);
-    }
-    placedModel.position.add(worldOffset);
-    
-    // Only rotate on significant horizontal drag (intentional twist gesture)
-    // Ignore rotation during vertical drags to prevent orbiting
-    if (Math.abs(deltaX) > Math.abs(deltaY) * 0.5 && Math.abs(deltaX) > 2) {
-      rotationVelocity = deltaX * 0.008;
-      placedModel.rotation.y += rotationVelocity;
+    if (isHorizontalDrag) {
+      // Horizontal drag: rotate in place (no position change)
+      if (Math.abs(deltaX) > 2) {
+        rotationVelocity = deltaX * 0.008;
+        placedModel.rotation.y += rotationVelocity;
+      }
+      // Reset drag velocity so inertia doesn't cause unwanted panning after rotation
+      dragVelocity.set(0, 0, 0);
+    } else {
+      // Vertical drag: pan/move the model on the horizontal plane
+      // Get camera direction for proper world-space movement
+      const forward = new THREE.Vector3();
+      controller.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Convert screen delta to world movement (flattened to floor plane)
+      // Vertical drag moves forward/back, horizontal drag moves left/right
+      const panX = deltaX * 0.004;
+      const panY = deltaY * 0.004;
+      
+      const worldOffset = new THREE.Vector3()
+        .addScaledVector(right, panX)
+        .addScaledVector(forward, -panY);
+      
+      // Apply offset in anchorGroup's local space
+      if (anchorGroup) {
+        const invQuat = anchorGroup.getWorldQuaternion(new THREE.Quaternion()).invert();
+        worldOffset.applyQuaternion(invQuat);
+      }
+      placedModel.position.add(worldOffset);
+      // Reset rotation velocity so inertia doesn't cause unwanted spinning after panning
+      rotationVelocity = 0;
     }
     
     touch.lastX = x;
