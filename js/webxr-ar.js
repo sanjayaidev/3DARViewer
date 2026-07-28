@@ -205,6 +205,15 @@ async function start({ onExit, onAddToCart }) {
 
   camera = new THREE.PerspectiveCamera();
 
+  // Three.js defaults to the 'local-floor' reference space, which is only
+  // guaranteed on VR headsets. Handheld phone AR does not guarantee floor
+  // tracking, so requesting it can throw "NotSupportedError: ... reference
+  // space type is not supported by this device" and leave the session with
+  // no working camera pose — which renders as a black screen even though
+  // the AR session itself started fine. 'local' is the space guaranteed for
+  // immersive-ar sessions, so use that instead.
+  renderer.xr.setReferenceSpaceType('local');
+
   try {
     loadedGltfTemplate = await loadModel();
   } catch (err) {
