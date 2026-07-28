@@ -192,6 +192,10 @@ async function start({ onExit, onAddToCart }) {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(canvas.clientWidth, canvas.clientHeight);
   renderer.xr.enabled = true;
+  // Without this, the renderer clears each frame to opaque black and paints
+  // straight over the camera passthrough — the classic "AR shows a black
+  // screen" bug. Alpha must be 0 so the camera feed shows through.
+  renderer.setClearColor(0x000000, 0);
 
   camera = new THREE.PerspectiveCamera();
 
