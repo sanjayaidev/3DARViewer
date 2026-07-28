@@ -233,6 +233,58 @@ body {
 }
 
 /* ============================================================
+   Additional product cards
+   ============================================================ */
+.model-gallery {
+  display: grid;
+  gap: 16px;
+  padding: 20px 20px 0;
+}
+
+.viewer-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.viewer-card .viewer {
+  height: 240px;
+  min-height: 240px;
+}
+
+.viewer-card-info {
+  padding: 16px 18px 18px;
+}
+
+.viewer-card-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0 0 8px;
+  color: var(--color-ivory);
+}
+
+.viewer-card-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ivory-dim);
+  margin: 0 0 14px;
+}
+
+.viewer-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.viewer-card-price {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--color-amber);
+}
+
+/* ============================================================
    Product info
    ============================================================ */
 .product-info {

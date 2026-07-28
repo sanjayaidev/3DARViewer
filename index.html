@@ -79,8 +79,8 @@
 
   </section>
 
-  <section class="model-gallery" aria-label="Additional models">
-    <div class="viewer-card">
+  <section class="model-gallery" aria-label="Additional products">
+    <article class="viewer-card">
       <model-viewer
         class="viewer"
         src="assets/models/cake.glb"
@@ -92,10 +92,17 @@
         environment-image="neutral"
         interaction-prompt="none"
       ></model-viewer>
-      <p class="product-desc">Cake model</p>
-    </div>
+      <div class="viewer-card-info">
+        <h2 class="viewer-card-title">Layer Cake</h2>
+        <p class="viewer-card-desc">A festive layered cake model ready to preview in 3D.</p>
+        <div class="viewer-card-footer">
+          <span class="viewer-card-price">$18</span>
+          <button type="button" class="add-to-cart">View product</button>
+        </div>
+      </div>
+    </article>
 
-    <div class="viewer-card">
+    <article class="viewer-card">
       <model-viewer
         class="viewer"
         src="assets/models/dish.glb"
@@ -107,8 +114,15 @@
         environment-image="neutral"
         interaction-prompt="none"
       ></model-viewer>
-      <p class="product-desc">Dish model</p>
-    </div>
+      <div class="viewer-card-info">
+        <h2 class="viewer-card-title">Signature Dish</h2>
+        <p class="viewer-card-desc">A plated serving model with a polished presentation.</p>
+        <div class="viewer-card-footer">
+          <span class="viewer-card-price">$24</span>
+          <button type="button" class="add-to-cart">View product</button>
+        </div>
+      </div>
+    </article>
   </section>
 
   <!-- Mode switch -->
