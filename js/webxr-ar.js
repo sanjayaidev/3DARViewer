@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const MODEL_URL = 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
 const MIN_SCALE = 0.15;
@@ -35,11 +36,26 @@ async function isSupported() {
   }
 }
 
-function setupScene() {
+function setupScene(rendererInstance) {
   scene = new THREE.Scene();
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  // Plain THREE lights alone leave PBR materials (metalness/roughness)
+  // looking flat and dull — this is the actual reason Simple AR (which
+  // uses model-viewer's built-in neutral HDR environment map) looks so
+  // much better than Advanced AR did. Generating a PMREM environment map
+  // and assigning it to scene.environment gives the model real image-based
+  // lighting and reflections, the same trick model-viewer uses under the
+  // hood, without adding a visible background (scene.background stays
+  // null so the camera passthrough still shows through).
+  const pmremGenerator = new THREE.PMREMGenerator(rendererInstance);
+  scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmremGenerator.dispose();
+
+  // Kept as a gentle fill/key light on top of the environment map — mostly
+  // helps the reticle and adds a bit of directionality, but the environment
+  // map above is now doing the heavy lifting for the model itself.
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
   dirLight.position.set(1, 2, 1);
   scene.add(dirLight);
 
@@ -217,8 +233,6 @@ async function start({ onExit, onAddToCart }) {
   hintEl.textContent = 'Move your phone slowly to find a surface, then tap to place.';
   cartBtn.hidden = true;
 
-  setupScene();
-
   renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(canvas.clientWidth, canvas.clientHeight);
@@ -227,6 +241,16 @@ async function start({ onExit, onAddToCart }) {
   // straight over the camera passthrough — the classic "AR shows a black
   // screen" bug. Alpha must be 0 so the camera feed shows through.
   renderer.setClearColor(0x000000, 0);
+  // Matches model-viewer's default rendering setup — without correct tone
+  // mapping and color space, an environment map still looks washed out or
+  // oversaturated even once it's wired up.
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  // setupScene needs a live renderer to generate the PMREM environment map,
+  // so this must happen after the renderer above, not before it.
+  setupScene(renderer);
 
   camera = new THREE.PerspectiveCamera();
 
