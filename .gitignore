@@ -1,1 +1,1 @@
-(product-salmon.html is a source file, not a build artifact, dependency, or temp file - so no ignores needed)
+(product-cake.html, product-dish.html, product-salmon.html are all source files, so nothing should be ignored)
