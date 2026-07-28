@@ -14,6 +14,17 @@
 
 <!-- model-viewer handles View 3D + Simple AR natively -->
 <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+
+<!-- Three.js, for Advanced AR mode -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="js/webxr-ar.js"></script>
 </head>
 <body>
 
@@ -31,11 +42,13 @@
     <model-viewer
       id="viewer"
       class="viewer"
-      src="assets/models/dish.glb"
-      ios-src="assets/models/dish.usdz"
+      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+      ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
       alt="3D model of Charred Miso Salmon"
       ar
-      ar-modes="webxr scene-viewer quick-look"
+      ar-modes="scene-viewer webxr quick-look"
+      ar-placement="floor"
+      ar-scale="fixed"
       camera-controls
       auto-rotate
       auto-rotate-delay="1200"
@@ -53,6 +66,15 @@
     <div id="advancedArNotice" class="ar-notice" hidden>
       <p id="advancedArNoticeText"></p>
       <button type="button" id="advancedArNoticeClose" class="notice-close">Dismiss</button>
+    </div>
+
+    <!-- Rendered on top of the camera feed only during an active Advanced AR session -->
+    <div id="arOverlay" class="ar-overlay" hidden>
+      <p class="ar-overlay-hint" id="arHint"></p>
+      <div class="ar-overlay-controls">
+        <button type="button" id="arExitBtn" class="ar-exit-btn">Exit AR</button>
+        <button type="button" id="arAddToCartBtn" class="ar-cart-btn" hidden>Add to cart</button>
+      </div>
     </div>
 
   </section>
@@ -138,10 +160,37 @@
     }
   });
 
-  tabs.advancedAr.addEventListener('click', () => {
+  tabs.advancedAr.addEventListener('click', async () => {
     setActiveTab('advancedAr');
-    noticeText.textContent = 'Advanced AR (Three.js + WebXR) is wired up in the next file \u2014 this tab is just the placeholder for now.';
-    notice.hidden = false;
+    notice.hidden = true;
+
+    if (!window.AdvancedAR) {
+      noticeText.textContent = 'Advanced AR is still loading — give it a second and tap again.';
+      notice.hidden = false;
+      return;
+    }
+
+    const supported = await window.AdvancedAR.isSupported();
+    if (!supported) {
+      noticeText.textContent = 'Advanced AR needs Chrome on an AR-capable Android device. Try Simple AR instead.';
+      notice.hidden = false;
+      setActiveTab('view3d');
+      return;
+    }
+
+    viewer.hidden = true;
+    xrCanvas.hidden = false;
+
+    window.AdvancedAR.start({
+      onExit: () => {
+        xrCanvas.hidden = true;
+        viewer.hidden = false;
+        setActiveTab('view3d');
+      },
+      onAddToCart: () => {
+        console.log('Added to cart from Advanced AR (cart wiring comes later).');
+      },
+    });
   });
 
   noticeClose.addEventListener('click', () => {
