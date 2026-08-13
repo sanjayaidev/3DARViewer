@@ -1,0 +1,10 @@
+{
+  "name": "3d-ar-viewer-local",
+  "version": "1.0.0",
+  "description": "Local static server for The Ember Room 3D AR Viewer (no external dependencies)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}
